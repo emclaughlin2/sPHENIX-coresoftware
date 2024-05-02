@@ -24,6 +24,7 @@ class SvtxTrack;
 class SvtxTrackMap;
 class SvtxVertexMap;
 class TrkrCluster;
+class TrackVertexCrossingAssoc;
 
 class PHSimpleVertexFinder : public SubsysReco
 {
@@ -48,7 +49,8 @@ class PHSimpleVertexFinder : public SubsysReco
 
   int GetNodes(PHCompositeNode* topNode);
   int CreateNodes(PHCompositeNode* topNode);
-  
+
+  void checkDCAs(SvtxTrackMap* track_map);
   void checkDCAs();
 
   void findDcaTwoTracks(SvtxTrack *tr1, SvtxTrack *tr2);  
@@ -61,7 +63,7 @@ class PHSimpleVertexFinder : public SubsysReco
  double getAverage(std::vector<double> &v);
 
   SvtxTrackMap *_track_map{nullptr};
-  SvtxTrack *_track{nullptr};  
+//  SvtxTrack *_track{nullptr};  
   SvtxVertexMap *_svtx_vertex_map{nullptr};
   
   double _base_dcacut = 0.0080;  // 80 microns 
@@ -82,7 +84,8 @@ class PHSimpleVertexFinder : public SubsysReco
   std::map<unsigned int, Eigen::Vector3d> _vertex_position_map;
   std::map<unsigned int, matrix_t> _vertex_covariance_map;
   std::set<unsigned int> _vertex_set;
-  
+
+  TrackVertexCrossingAssoc* _track_vertex_crossing_map{nullptr};  
 };
 
 #endif // PHSIMPLEVERTEXFINDER_H

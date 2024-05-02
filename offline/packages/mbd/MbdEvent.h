@@ -6,7 +6,11 @@
 
 #include <TFile.h>
 #include <TTree.h>
+
+#ifndef ONLINE
 #include <fun4all/Fun4AllBase.h>
+#endif
+
 #include <vector>
 
 class PHCompositeNode;
@@ -19,16 +23,23 @@ class MbdGeom;
 class CDBUtils;
 class TF1;
 class TCanvas;
+#ifndef ONLINE
+class CaloPacketContainer;
+#endif
 
-class MbdEvent : public Fun4AllBase
+class MbdEvent
 {
  public:
-  MbdEvent();
+  MbdEvent(const int cal_pass = 0);
   virtual ~MbdEvent();
 
   int SetRawData(Event *event, MbdPmtContainer *mbdpmts);
+#ifndef ONLINE
+  int SetRawData(CaloPacketContainer *mbdraw, MbdPmtContainer *mbdpmts);
+#endif
   int Calculate(MbdPmtContainer *mbdpmts, MbdOut *mbdout);
   int InitRun();
+  int End();
   void Clear();
 
   void SetSim(const int s) { _simflag = s; }
@@ -49,9 +60,17 @@ class MbdEvent : public Fun4AllBase
 
   int get_EventNumber(void) const { return m_evt; }
 
-  void set_debugintt(const int d) { debugintt = d; }
+  void set_debugintt(const int d) { _debugintt = d; }
 
   MbdSig *GetSig(const int ipmt) { return &_mbdsig[ipmt]; }
+
+  MbdCalib *GetCalib() { return _mbdcal; }
+
+  int FillSampMaxCalib();
+
+  int  calib_is_done() { return _calib_done; }
+  int  Verbosity() { return _verbose; }
+  void Verbosity(const int v) { _verbose = v; }
 
  private:
   static const int NCHPERPKT = 128;
@@ -63,9 +82,9 @@ class MbdEvent : public Fun4AllBase
   int Read_TQ_T0_Offsets(const std::string &calfname);
   int Read_TQ_CLK_Offsets(const std::string &calfname);
   int Read_TT_CLK_Offsets(const std::string &calfname);
-  int DoQuickClockOffsetCalib();
+  //int DoQuickClockOffsetCalib();
 
-  int debugintt{0};
+  int _debugintt{0};
   void ReadSyncFile(const char *fname = "SYNC_INTTMBD.root");
 
   float gaincorr[MbdDefs::MBD_N_PMT]{};       // gain corrections
@@ -78,12 +97,18 @@ class MbdEvent : public Fun4AllBase
   int _verbose{0};
   int _runnum{0};
   int _simflag{0};
-  Packet *p[2]{nullptr, nullptr};
+  int _nsamples{31};
+  int _calib_done{0};
+  int _is_online{0};
+
+  int ProcessRawPackets(MbdPmtContainer *mbdpmts);
 
   // alignment data
-  Int_t m_evt{0};
+  Int_t   m_evt{0};
   Short_t m_clk{0};
   Short_t m_femclk{0};
+  UInt_t  m_xmitclocks[2];     // [ipkt]
+  UInt_t  m_femclocks[2][2];   // [ipkt][iadc]
 
   // raw data
   Float_t m_adc[MbdDefs::MBD_N_FEECH][MbdDefs::MAX_SAMPLES]{};   // raw waveform, adc values
@@ -113,9 +138,25 @@ class MbdEvent : public Fun4AllBase
   TH1 *hevt_bbct[2]{};  // time in each bbc, per event
   TF1 *gausfit[2]{nullptr, nullptr};
 
-  TH2 *h2_tmax[2] = {};  // [0 == time ch, 1 == chg ch], max sample in evt vs ch
-
   float TRIG_SAMP[16]{};  // [board]
+
+  // Calibration Data
+  int _calpass{0};
+  TString _caldir;
+  //std::string _caldir;
+
+  // sampmax
+  int CalcSampMaxCalib();
+  std::unique_ptr<TFile> _smax_tfile{nullptr};
+  TH1 *h_tmax[256]{};     // [feech], max sample in event
+  TH2 *h2_tmax[2]{};      // [0 == time ch, 1 == chg ch], max sample in evt vs ch
+  TH2 *h2_wave[2]{};      // [0 == time ch, 1 == chg ch], all samples in evt vs ch
+  TH2 *h2_trange_raw{};   // raw tdc at maxsamp vs ch
+  TH2 *h2_trange{};       // subtracted tdc at maxsamp vs ch
+  //TH1 *h_trange[2]{};     // subtracted tdc at maxsamp, [S/N]
+
+  // pedestals (hists are in MbdSig)
+  int CalcPedCalib();
 
   TCanvas *ac{nullptr};  // for plots used during debugging
 
