@@ -15,7 +15,6 @@
 
 class PHCompositeNode;
 class Event;
-class Packet;
 class MbdPmtContainer;
 class MbdOut;
 class MbdCalib;
@@ -25,6 +24,7 @@ class TF1;
 class TCanvas;
 #ifndef ONLINE
 class CaloPacketContainer;
+class Gl1Packet;
 #endif
 
 class MbdEvent
@@ -35,7 +35,7 @@ class MbdEvent
 
   int SetRawData(Event *event, MbdPmtContainer *mbdpmts);
 #ifndef ONLINE
-  int SetRawData(CaloPacketContainer *mbdraw, MbdPmtContainer *mbdpmts);
+  int SetRawData(CaloPacketContainer *mbdraw, MbdPmtContainer *mbdpmts, Gl1Packet *gl1raw);
 #endif
   int Calculate(MbdPmtContainer *mbdpmts, MbdOut *mbdout);
   int InitRun();
@@ -69,10 +69,11 @@ class MbdEvent
   int FillSampMaxCalib();
 
   int  calib_is_done() { return _calib_done; }
-  int  Verbosity() { return _verbose; }
-  void Verbosity(const int v) { _verbose = v; }
 
   int ProcessRawPackets(MbdPmtContainer *mbdpmts);
+
+  int  Verbosity() { return _verbose; }
+  void Verbosity(const int v) { _verbose = v; }
 
  private:
   static const int NCHPERPKT = 128;
@@ -101,9 +102,8 @@ class MbdEvent
   int _simflag{0};
   int _nsamples{31};
   int _calib_done{0}; 
-  int _no_sampmax{0};     //! sampmax calib doesn't exist
-  int _is_online{0};      //! for OnlMon
-
+  unsigned int _no_sampmax{0};      //! sampmax calib doesn't exist
+  int _is_online{0};                //! for OnlMon
 
   // alignment data
   Int_t   m_evt{0};
@@ -147,11 +147,12 @@ class MbdEvent
   TString _caldir;
   //std::string _caldir;
 
-  // sampmax
+  // sampmax and other calib stuff
   int CalcSampMaxCalib();
-  std::unique_ptr<TFile> _smax_tfile{nullptr};
-  TH1 *h_tmax[256]{};     // [feech], max sample in event
-  TH2 *h2_tmax[2]{};      // [0 == time ch, 1 == chg ch], max sample in evt vs ch
+  std::unique_ptr<TFile> _calpass1_tfile{nullptr};
+  std::unique_ptr<TFile> _calpass2_tfile{nullptr};
+  TH1 *h_smax[256]{};     // [feech], max sample in event
+  TH2 *h2_smax[2]{};      // [0 == time ch, 1 == chg ch], max sample in evt vs ch
   TH2 *h2_wave[2]{};      // [0 == time ch, 1 == chg ch], all samples in evt vs ch
   TH2 *h2_trange_raw{};   // raw tdc at maxsamp vs ch
   TH2 *h2_trange{};       // subtracted tdc at maxsamp vs ch

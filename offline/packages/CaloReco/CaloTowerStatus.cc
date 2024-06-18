@@ -88,6 +88,10 @@ int CaloTowerStatus::InitRun(PHCompositeNode *topNode)
   m_fieldname_chi2 = "fraction";
 
   std::string calibdir = CDBInterface::instance()->getUrl(m_calibName_chi2);
+      if (use_directURL_chi2)
+  {
+    calibdir = m_directURL_chi2;
+  }
   if (!calibdir.empty())
   {
     m_cdbttree_chi2 = new CDBTTree(calibdir);
@@ -102,6 +106,10 @@ int CaloTowerStatus::InitRun(PHCompositeNode *topNode)
   m_fieldname_time = "time";
 
   calibdir = CDBInterface::instance()->getUrl(m_calibName_time);
+  if (use_directURL_time)
+  {
+    calibdir = m_directURL_time;
+  }
   if (!calibdir.empty())
   {
     m_cdbttree_time = new CDBTTree(calibdir);
@@ -120,6 +128,10 @@ int CaloTowerStatus::InitRun(PHCompositeNode *topNode)
   m_fieldname_hotMap = "status";
 
   calibdir = CDBInterface::instance()->getUrl(m_calibName_hotMap);
+  if (use_directURL_hotMap)
+  {
+    calibdir = m_directURL_hotMap;
+  }
   if (!calibdir.empty())
   {
     m_cdbttree_hotMap = new CDBTTree(calibdir);
@@ -167,7 +179,10 @@ int CaloTowerStatus::process_event(PHCompositeNode * /*topNode*/)
   for (unsigned int channel = 0; channel < ntowers; channel++)
   {
     unsigned int key = m_raw_towers->encode_key(channel);
-    m_raw_towers->get_tower_at_channel(channel)->set_status(0);  // resetting status
+    //only reset what we will set
+    m_raw_towers->get_tower_at_channel(channel)->set_isHot(false); 
+    m_raw_towers->get_tower_at_channel(channel)->set_isBadTime(false); 
+    m_raw_towers->get_tower_at_channel(channel)->set_isBadChi2(false); 
 
     if (m_doHotChi2)
     {

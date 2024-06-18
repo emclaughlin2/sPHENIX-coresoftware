@@ -22,6 +22,7 @@
 #include <phool/phool.h>
 
 #include <ffarawobjects/CaloPacketContainer.h>
+#include <ffarawobjects/Gl1Packet.h>
 
 #include <TF1.h>
 
@@ -87,17 +88,32 @@ int MbdReco::process_event(PHCompositeNode *topNode)
     }
     else if ( m_mbdraw!=nullptr )
     {
-      status = m_mbdevent->SetRawData(m_mbdraw, m_mbdpmts);
+      status = m_mbdevent->SetRawData(m_mbdraw, m_mbdpmts,m_gl1raw);
     }
 
-    if (status == Fun4AllReturnCodes::DISCARDEVENT || status == -1001)
+    if (status == Fun4AllReturnCodes::DISCARDEVENT )
     {
       static int counter = 0;
-      if ( counter<2 )
+      if ( counter<3 )
       {
-        std::cout << PHWHERE << " ERROR, no good data in MBD" << std::endl;
+        std::cout << PHWHERE << " Warning, MBD discarding event " << std::endl;
         counter++;
       }
+      return Fun4AllReturnCodes::DISCARDEVENT;
+    }
+    else if (status == Fun4AllReturnCodes::ABORTEVENT )
+    {
+      static int counter = 0;
+      if ( counter<3 )
+      {
+        std::cout << PHWHERE << " Warning, MBD aborting event " << std::endl;
+        counter++;
+      }
+      return Fun4AllReturnCodes::ABORTEVENT;
+    }
+    else if ( status == -1001 )
+    {
+      // calculating sampmax on this event
       return Fun4AllReturnCodes::DISCARDEVENT;
     }
     else if (status < 0)
@@ -115,21 +131,18 @@ int MbdReco::process_event(PHCompositeNode *topNode)
   m_mbdevent->Calculate(m_mbdpmts, m_mbdout);
 
   // For multiple global vertex
-  if (m_mbdevent->get_bbcn(0) > 0 && m_mbdevent->get_bbcn(1) > 0) {
+  if (m_mbdevent->get_bbcn(0) > 0 && m_mbdevent->get_bbcn(1) > 0)
+  {
     auto vertex = std::make_unique<MbdVertexv2>();
     vertex->set_t(m_mbdevent->get_bbct0());
     vertex->set_z(m_mbdevent->get_bbcz());
     vertex->set_z_err(0.6);
     vertex->set_t_err(m_tres);
-
-    /*
-    for (int iarm = 0; iarm < 2; iarm++)
-    {
-      vertex->set_bbc_ns( iarm, m_mbdevent->get_bbcn(iarm), m_mbdevent->get_bbcq(iarm), m_mbdevent->get_bbct(iarm) );
-    }
-    */
+    vertex->set_beam_crossing(0);
 
     m_mbdvtxmap->insert(vertex.release());
+
+    // copy to globalvertex
   }
 
   if (Verbosity() > 0)
@@ -198,12 +211,19 @@ int MbdReco::createNodes(PHCompositeNode *topNode)
     bbcNode->addNode(MbdPmtContainerNode);
   }
 
-  m_mbdvtxmap = findNode::getClass<MbdVertexMap>(bbcNode, "MbdVertexMap");
+  PHCompositeNode *globalNode = dynamic_cast<PHCompositeNode *>(dstiter.findFirst("PHCompositeNode", "GLOBAL"));
+  if (!globalNode)
+  {
+    globalNode = new PHCompositeNode("GLOBAL");
+    dstNode->addNode(globalNode);
+  }
+
+  m_mbdvtxmap = findNode::getClass<MbdVertexMap>(globalNode, "MbdVertexMap");
   if (!m_mbdvtxmap)
   {
     m_mbdvtxmap = new MbdVertexMapv1();
     PHIODataNode<PHObject> *VertexMapNode = new PHIODataNode<PHObject>(m_mbdvtxmap, "MbdVertexMap", "PHObject");
-    bbcNode->addNode(VertexMapNode);
+    globalNode->addNode(VertexMapNode);
   }
 
   m_mbdgeom = findNode::getClass<MbdGeom>(runNode, "MbdGeom");
@@ -238,6 +258,9 @@ int MbdReco::getNodes(PHCompositeNode *topNode)
       counter++;
     }
   }
+
+  // Get the raw gl1 data from event combined DST
+  m_gl1raw = findNode::getClass<Gl1Packet>(topNode, "Gl1Packet");
 
   // MbdPmtContainer
   m_mbdpmts = findNode::getClass<MbdPmtContainer>(topNode, "MbdPmtContainer");

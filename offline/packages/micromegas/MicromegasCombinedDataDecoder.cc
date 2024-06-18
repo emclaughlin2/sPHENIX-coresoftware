@@ -14,6 +14,7 @@
 #include <ffarawobjects/MicromegasRawHitContainer.h>
 
 #include <fun4all/Fun4AllReturnCodes.h>
+#include <fun4all/Fun4AllServer.h>
 
 #include <phool/PHCompositeNode.h>
 #include <phool/PHNodeIterator.h>
@@ -94,6 +95,13 @@ int MicromegasCombinedDataDecoder::InitRun(PHCompositeNode* topNode)
     auto newNode = new PHIODataNode<PHObject>(hitsetcontainer, "TRKR_HITSET", "PHObject");
     trkrnode->addNode(newNode);
   }
+  auto rawhitcontainer = findNode::getClass<MicromegasRawHitContainer>(topNode, m_rawhitnodename);
+  if(!rawhitcontainer)
+  {
+    Fun4AllServer* se = Fun4AllServer::instance();
+    se->unregisterSubsystem(this);
+    std::cout << PHWHERE << "Removing TPOT unpacker, no raw hit container" << std::endl;
+  }
 
   return Fun4AllReturnCodes::EVENT_OK;
 }
@@ -139,7 +147,8 @@ int MicromegasCombinedDataDecoder::process_event(PHCompositeNode* topNode)
       continue;
     }
 
-    const int fee = rawhit->get_fee();
+    // get fee id, apply mapping to original set, used downstream
+    const int fee = m_mapping.get_old_fee_id(rawhit->get_fee());
     const auto channel = rawhit->get_channel();
     const int samples = rawhit->get_samples();
 
