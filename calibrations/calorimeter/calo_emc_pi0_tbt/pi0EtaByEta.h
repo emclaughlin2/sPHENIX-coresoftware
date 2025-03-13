@@ -125,6 +125,12 @@ class pi0EtaByEta : public SubsysReco
     return;
   }
 
+  void set_mcsmearing(bool state)
+  {
+    mc_smearing = state;
+    return;
+  }
+
  protected:
   int Getpeaktime(TH1* h);
   std::string detector;
@@ -132,6 +138,7 @@ class pi0EtaByEta : public SubsysReco
 
   bool reqMinBias = true;
   bool reqVertex = false;
+  bool mc_smearing = false;
 
   bool doVtxCut = true;
   float vtx_z_cut = 20;
@@ -251,6 +258,7 @@ class pi0EtaByEta : public SubsysReco
   TH1* h_pt2{nullptr};
   TH1* h_nclusters{nullptr};
   TH1* h_emcal_e_eta{nullptr};
+  TH2* h_pt_vs_mass{nullptr};
 
   float convLev = 0.005;
 

@@ -32,6 +32,7 @@
 #include <TLorentzVector.h>
 #include <TNtuple.h>
 #include <TTree.h>
+#include <TRandom3.h>
 
 #include <CLHEP/Vector/ThreeVector.h>  // for Hep3Vector
 
@@ -121,7 +122,7 @@ int pi0EtaByEta::Init(PHCompositeNode* /*unused*/)
 
   h_nclusters = new TH1F("h_nclusters", "", 1000, 0, 1000);
 
-
+  h_pt_vs_mass = new TH2F("h_pt_vs_mass","", 50, 0, 10, 120, 0, 1.2);
 
   h_event = new TH1F("h_event", "", 1, 0, 1);
 
@@ -233,6 +234,7 @@ int pi0EtaByEta::process_towers(PHCompositeNode* topNode)
     return Fun4AllReturnCodes::EVENT_OK;
   }
 
+
   TowerInfoContainer* towers = findNode::getClass<TowerInfoContainer>(topNode, "TOWERINFO_CALIB_CEMC");
   if (towers)
   {
@@ -245,6 +247,7 @@ int pi0EtaByEta::process_towers(PHCompositeNode* topNode)
       int ieta = towers->getTowerEtaBin(towerkey);
       int iphi = towers->getTowerPhiBin(towerkey);
       bool isGood = tower->get_isGood();
+
       if (offlineenergy > emcal_hit_threshold && isGood && isMinBias)
       {
         h_cemc_etaphi->Fill(ieta, iphi);
@@ -281,11 +284,37 @@ int pi0EtaByEta::process_towers(PHCompositeNode* topNode)
     throw std::runtime_error("failed to find TOWERGEOM node in RawClusterDeadHotMask::CreateNodeTree");
   }
 
+
   /////////////////////////////
   // clusters
   RawClusterContainer::ConstRange clusterEnd = clusterContainer->getClusters();
   RawClusterContainer::ConstIterator clusterIter;
   RawClusterContainer::ConstIterator clusterIter2;
+
+  /////////////////////////////
+  // cluster smearing 
+  if (mc_smearing) {
+    for (clusterIter = clusterEnd.first; clusterIter != clusterEnd.second; clusterIter++) 
+    {
+      RawCluster* recoCluster = clusterIter->second;
+
+      float clusenergy = recoCluster->get_energy();
+      float clusecore = recoCluster->get_ecore();
+
+      TRandom3 randGen(0);
+      double mean = 1.0;
+      //double sigma = 0.118961841; // edited for mc smear variation
+      double sigma = 0.1012262;
+      double smear_val = randGen.Gaus(mean, sigma);
+
+      recoCluster->set_energy(smear_val*clusenergy);
+      recoCluster->set_ecore(smear_val*clusecore);
+
+      //std::cout << "orig cluster e " << clusenergy << " smear_val " << smear_val << " new cluster e " << recoCluster->get_energy() << std::endl;
+      
+    }
+  }
+
   int nClusCount = 0;
   for (clusterIter = clusterEnd.first; clusterIter != clusterEnd.second; clusterIter++)
   {
@@ -413,6 +442,8 @@ int pi0EtaByEta::process_towers(PHCompositeNode* topNode)
 
       h_pt1->Fill(photon1.Pt());
       h_pt2->Fill(photon2.Pt());
+
+      h_pt_vs_mass->Fill(pi0.Pt(),pi0.M());
 
       h_InvMass->Fill(pi0.M());
       if (clus2_pt < pt1ClusCut)
